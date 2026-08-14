@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - sas-batch-pod-template.yaml
+  - sas-compute-pod-template.yaml
+  - sas-connect-pod-template.yaml

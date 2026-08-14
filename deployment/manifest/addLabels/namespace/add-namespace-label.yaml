@@ -1,0 +1,11 @@
+apiVersion: builtin
+kind: LabelTransformer
+metadata:
+  name: add-admin-scope-namespace
+labels:
+  sas.com/admin-scope: namespace
+fieldSpecs:
+- path: metadata/labels
+  create: true
+#- path: spec/template/metadata/labels
+#  create: true

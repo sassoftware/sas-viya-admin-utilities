@@ -1,0 +1,12 @@
+{
+  "name": "group2",
+  "version": 1,
+  "description": "group2 Context",
+  "launchContext": {
+      "contextName": "group2"
+   },
+   "authorizedGroups": [
+      "group2"
+   ],
+   "launchType": "service"
+}

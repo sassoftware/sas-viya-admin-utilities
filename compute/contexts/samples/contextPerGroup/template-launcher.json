@@ -1,0 +1,10 @@
+{
+  "name": "${groupName} Launcher Context",
+  "launchType": "kubernetes",
+  "kubernetes": {
+    "jobPodTemplateName": "${groupidStandardized}-pod-template"
+  },
+  "sas": {
+    "options": "-memsize 2G"
+  }
+}

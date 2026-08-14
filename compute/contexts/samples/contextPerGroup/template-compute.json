@@ -1,0 +1,12 @@
+{
+  "name": "${groupName} Compute Context",
+  "version": 1,
+  "description": "Compute context for the group ${groupName}.  How quickly this compute context initializes is dependent on resource availability",
+  "launchContext": {
+      "contextName": "${groupName} Launcher Context"
+   },
+   "authorizedGroups": [
+      "${groupid}"
+   ],
+   "launchType": "service"
+}

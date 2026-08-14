@@ -1,0 +1,5 @@
+# This patch file can contain any number of patch statements to create a new pod template
+# based on the sas-job-config
+- op: replace
+  path: /metadata/name
+  value: sas-viya-helpers-compute-pod-template

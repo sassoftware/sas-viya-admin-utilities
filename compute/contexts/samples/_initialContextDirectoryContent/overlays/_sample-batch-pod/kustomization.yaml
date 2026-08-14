@@ -1,0 +1,13 @@
+#  Replace ${namespace} with your kubernetes namespace
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+- ../../staging/batch
+
+patchesJson6902:
+- target:
+    kind: PodTemplate
+    version: v1
+    namespace: ${namespace}
+    name: sas-batch-pod-template
+  path: create-pod-template.yaml

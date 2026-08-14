@@ -1,0 +1,24 @@
+# Sample kustomization file
+# This sample:
+#  - will replace the name of the template with a new name that includes the podName reference
+#  - will create a new volume definition
+#  - will mount the new volume definition to the compute pod template
+#
+# The variable references below must be included in the properties file (at the root of the 
+# template directory (the parent of overlay-templates!).
+# 
+- op: replace
+  path: /metadata/name
+  value: ${podName}
+- op: add
+  path: /template/spec/volumes/-
+  value:
+    name: ${podVolume}
+    nfs:
+      path: ${nfsVolumePath}
+      server: ${nfsServer}
+- op: add
+  path: /template/spec/containers/0/volumeMounts/-
+  value:
+    name: ${podVolume}
+    mountPath: ${podMountPath}

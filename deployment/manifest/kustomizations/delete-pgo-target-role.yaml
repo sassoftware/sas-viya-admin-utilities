@@ -1,0 +1,12 @@
+---
+apiVersion: builtin
+kind: PatchTransformer
+metadata:
+  name: delete-pgo-target-role-nsadmin
+patch: |-
+  apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    name: pgo-target-role
+    namespace: ${NAMESPACE}
+  $patch: delete

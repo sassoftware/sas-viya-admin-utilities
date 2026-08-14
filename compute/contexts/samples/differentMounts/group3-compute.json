@@ -1,0 +1,16 @@
+{
+    "attributes": {
+        "test": "4"
+    },
+    "description": "group3 Application Context",
+    "launchContext": {
+        "contextName": "group3"
+    },
+   "authorizedGroups": [
+      "group3"
+   ],
+    "launchType": "service",
+    "name": "group3",
+    "version": 3
+}
+

@@ -1,0 +1,10 @@
+{
+  "name": "group1",
+  "launchType": "kubernetes",
+  "kubernetes": {
+    "jobPodTemplateName": "group1"
+  },
+  "sas": {
+    "options": "-memsize 2G"
+  }
+}

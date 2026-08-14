@@ -1,0 +1,7 @@
+{
+  "name": "SAS Viya Helpers Launcher Context",
+  "launchType": "kubernetes",
+  "kubernetes": {
+    "jobPodTemplateName": "sas-viya-helpers-compute-pod-template"
+  }
+}

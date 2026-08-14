@@ -1,0 +1,15 @@
+- op: replace
+  path: /metadata/name
+  value: group1
+- op: add
+  path: /template/spec/volumes/-
+  value:
+    name: group1
+    nfs:
+      path: /sasdata/groups/group1
+      server: 192.168.8.239
+- op: add
+  path: /template/spec/containers/0/volumeMounts/-
+  value:
+    name: group1
+    mountPath: /group

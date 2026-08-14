@@ -1,0 +1,8 @@
+This sample will show how to use the compute/genGroupContexts.sh script to generate a pod template, launcher context, compute context and batch context per group (ie. department).
+
+The scenario here is that every department has their own specific mount point that should be made available to their context, but they should not see other groups' mount points.
+
+To use this sample:
+
+- copy this directory to a work directory
+- run the sas-viya-helpers/compute/genGroupContexts.sh -f <group file> -t <this working directory> -o <an output directory>

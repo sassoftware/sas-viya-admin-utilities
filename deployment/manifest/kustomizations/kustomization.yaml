@@ -1,0 +1,5 @@
+resources:
+  - in-site.yaml
+transformers:
+  - delete-pgo-role.yaml
+  - delete-pgo-target-role.yaml

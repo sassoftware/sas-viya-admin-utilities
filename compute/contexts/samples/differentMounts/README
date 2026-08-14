@@ -1,0 +1,3 @@
+Problem:  The customer wants three different organizations (whose memberships are represented by individual groups) to have unique mount points in their launched compute server (due to security concerns).
+
+Approach:  Define 3 new podtemplates, 1 per group, that has the right mount point defined.  Define 3 new launcher context and eventually compute context that surfaces these pod templates.  Set the authorizations on the compute context so only the appropriate group can see their compute context.

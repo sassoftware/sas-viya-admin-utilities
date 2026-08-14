@@ -1,0 +1,4 @@
+resources:
+  - site-cluster-admin.yaml
+transformers:
+  - add-cluster-label.yaml
