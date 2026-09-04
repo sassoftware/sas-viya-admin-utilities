@@ -1,4 +1,9 @@
 /*
+ * Copyright © 2026, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
  * Creates a libname statement used for establishing a connection to the database.
  *
  * Users must first obtain the proper password by issuing the following command

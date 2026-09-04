@@ -1,4 +1,9 @@
 /*
+ * Copyright © 2026, SAS Institute Inc., Cary, NC, USA.  All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/*
  * Enter the id of the group to update along primary GID value.
  */
 %let groupid='<< enter groupid >>';
