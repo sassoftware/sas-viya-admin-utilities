@@ -1,4 +1,0 @@
-resources:
-  - site-namespace-admin.yaml
-transformers:
-  - add-namespace-label.yaml

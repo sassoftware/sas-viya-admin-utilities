@@ -1,13 +1,12 @@
 #!/bin/bash
 
-dirname=`dirname "$0"`
-thispath=`cd "$dirname" ; pwd `
-thisScript=`basename "$0"`
-
 #############################################################################
 function showHelp {
     echo ""
     echo "This script will create a cluster admin and a separate namespace admin yaml file from the input site.yaml"
+    echo ""
+    echo "Cluster-scoped objects (no metadata.namespace) are always put in the cluster admin file, since a"
+    echo "namespace admin cannot create them, even when their sas.com/admin label would place them in the namespace file."
     echo ""
     echo "Parameters:"
     echo ""
@@ -17,8 +16,6 @@ function showHelp {
     echo "-e|--include-exec = include any roles that need pods/exec into cluster admin yaml"
     echo "-s|--insert-internal = insert internal cluster objects into cluster admin file"
     echo "-l|--skip-label = by default, a label will be added to all objects in the respective files representing which scope/file they came from.  This option will exclude those labels from being added."
-  
-
 }
 
 #############################################################################
@@ -27,12 +24,10 @@ function showHelp {
 inputSite=""
 outputCluster="site-cluster-admin.yaml"
 outputNamespace="site-namespace-admin.yaml"
-
 includeExecCluster="0"
-
 insertInternal="0"
-
 addLabels="1"
+action=""
 
 ###  Parse the arguments
 
@@ -69,10 +64,6 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       action="help"
       ;;
-    -*|--*)
-      echo "ERROR: Invalid parameter, $1"
-      exit 22
-      ;;
     *)
       echo "ERROR: Invalid parameter, $1"
       exit 22
@@ -94,14 +85,12 @@ then
   echo "ERROR: The name of the input site yaml file must be passed as a parameter"
   showHelp
   exit 22
-else
-  if [[ ! -f "$inputSite" ]]
-  then
-     echo ""
-     echo "ERROR: The input site yaml file specified does not exist"
-     showHelp
-     exit 22
-  fi
+elif [[ ! -f "$inputSite" ]]
+then
+  echo ""
+  echo "ERROR: The input site yaml file specified does not exist"
+  showHelp
+  exit 22
 fi
 
 if [[ "$outputCluster" == "" ]]
@@ -120,135 +109,58 @@ then
   exit 22
 fi
 
-#  This program will use yq to parse the yaml file on occasion.  Make sure that it resolves.
+#  Requires mikefarah yq v4 with -c (compact sequence indent, matching kustomize output).
 
-yqExists=`which yq 2>&1 | grep -v "no yq"`
-
-if [[ "$yqExists" == "" ]]
+if ! yq -c -n '.' > /dev/null 2>&1
 then
    echo ""
-   echo "ERROR: The yq executable is required by this script and must be on the PATH to execute."
-   echo "       No yq executable found."
+   echo "ERROR: mikefarah yq v4 with -c support must be on the PATH."
    exit 22
 fi
 
-timestamp=`date +%Y%m%d%H%M%S%N`
+#  Each output file is built with ONE yq select so documents keep site.yaml's order,
+#  which kustomize build has already sorted.  Every condition below is a yq expression.
 
-#  Build the cluster admin file
-echo "Creating cluster admin file $outputCluster"
+admin='.metadata.labels."sas.com/admin"'
 
-yq eval 'select(.metadata.labels."sas.com/admin" == "cluster-api")' "$inputSite" > "$outputCluster"
+# Labels applied by SAS's deploy procedure.  Others go to neither file: "none" (build-time
+# inputs, one-off migration jobs) and upgrade-only objects that SAS applies by their own procedure.
+deployable="($admin == \"cluster-api\" or $admin == \"cluster-admin-internal\" or $admin == \"cluster-wide\" or $admin == \"cluster-local\" or $admin == \"namespace\")"
 
-#  If there are any extra objects included in the site yaml that need to be put in the cluster admin site yaml, 
-#  mark them with a special label that will include them now.
-#  Make sure they don't also have any of the other labels that would cause them to be duplicated!
+# No namespace = cluster-scoped (e.g. sas-logon-app's ClusterRoleBinding)
+clusterScoped='(.metadata.namespace == null)'
+
+# Roles that grant pods/exec (e.g. postgres-operator)
+execRoles='(.kind == "Role" and ([.rules[]?.resources[]?] | any_c(. == "pods/exec")))'
+
+# Objects a namespace admin can't create.  The namespace file gets every other deployable
+# object, so the files never overlap and no deployable object is dropped.
+needsClusterAdmin="$admin == \"cluster-api\" or $clusterScoped"
 
 if [[ "$insertInternal" == "1" ]]
 then
-	echo "---" >> "$outputCluster"
-	yq eval 'select(.metadata.labels."sas.com/admin" == "cluster-admin-internal")' "$inputSite" >> "$outputCluster"
+   needsClusterAdmin="$needsClusterAdmin or $admin == \"cluster-admin-internal\""
 fi
 
 if [[ "$includeExecCluster" == "1" ]]
 then
-   echo "Adding any roles that have pods/exec to $outputCluster"
-
-	echo "---" >> "$outputCluster"
-	yq eval 'select(.kind == "Role" and .metadata.name == "pgo-role")' "$inputSite" >> "$outputCluster"
-	echo "---" >> "$outputCluster"
-	yq eval 'select(.kind == "Role" and .metadata.name == "pgo-target-role")' "$inputSite" >> "$outputCluster"
-	echo "---" >> "$outputCluster"
+   needsClusterAdmin="$needsClusterAdmin or $execRoles"
 fi
 
-if [[ "$addLabels" == "1" ]]
-then
+#  yq filter appended to the select: add the scope label, keeping label keys sorted as kustomize did
+function scopeLabel {
+   if [[ "$addLabels" == "1" ]]
+   then
+      echo " | .metadata.labels.\"sas.com/admin-scope\" = \"$1\" | .metadata.labels |= sort_keys(.)"
+   fi
+}
 
-   tmpFile="/tmp/site-cluster-admin-${timestamp}.yaml"
-
-   mv "$outputCluster" $tmpFile
-
-   "$thispath/addLabels/addSplitLabels.sh" -c "$tmpFile" -oc "$outputCluster" 
-   
-   rm -f $tmpFile
-
-fi
-
-#  Build the namespace admin file
+echo "Creating cluster admin file $outputCluster"
+yq -c "select($deployable and ($needsClusterAdmin))$(scopeLabel cluster)" "$inputSite" > "$outputCluster" || exit 1
 
 echo "Creating namespace admin file $outputNamespace"
+yq -c "select($deployable and (($needsClusterAdmin) | not))$(scopeLabel namespace)" "$inputSite" > "$outputNamespace" || exit 1
 
-yq eval 'select(.metadata.labels."sas.com/admin" == "cluster-wide")' "$inputSite" > "$outputNamespace"
-echo "---" >> "$outputNamespace"
-
-if [[ "$insertInternal" == "0" ]]
-then
-	yq eval 'select(.metadata.labels."sas.com/admin" == "cluster-admin-internal")' "$inputSite" >> "$outputNamespace"
-	echo "---" >> "$outputNamespace"
-fi
-
-yq eval 'select(.metadata.labels."sas.com/admin" == "cluster-local")' "$inputSite" >> "$outputNamespace"
-echo "---" >> "$outputNamespace"
-yq eval 'select(.metadata.labels."sas.com/admin" == "namespace")' "$inputSite" >> "$outputNamespace"
-echo "---" >> "$outputNamespace"
-
-#  If we are to put the pods/exec roles in the cluster admin site, we need to remove them from 
-#  the namespace site yaml.  
-#  I couldn't figure out a reliable way to do this with yq, so back to kustomize
-#
-
-if [[ "$includeExecCluster" == "1" ]]
-then
-
-   echo "Removing any roles that have pods/exec from $outputNamespace"
-
-   workArea="/tmp/buildAdmin-workarea-${timestamp}"
-
-   mkdir "$workArea"
-
-   cp $thispath/kustomizations/* "$workArea"
-
-   #  Copy the file to update
-
-   nsFilename=`basename "$outputNamespace"`
-
-   cp "$outputNamespace" "$workArea/in-site.yaml"
-
-   #  Replace the namespace in the kustomization files
-
-   pushd "$workArea" > /dev/null
-   #  Replace the namespace in the kustomization files
-
-   namespace=`grep "namespace:" in-site.yaml | head -1 | cut -d' ' -f4`
-
-   find . -name '*.yaml' | xargs -l sed -i "s/\${NAMESPACE}/$namespace/g" 
-
-   kustomize build . > "$nsFilename" 
-
-   #  The kustomization that removes the objects leaves empty objects in it, so
-   #  remove those now or kubectl apply will fail
-
-   sed -i "/^{}/d" "$nsFilename"
-   
-   popd > /dev/null
-
-   #  Now replace the output namespace admin file with the updated one
-
-   cp -f "$workArea/$nsFilename" "$outputNamespace"
-
-   rm -r "$workArea"
-
-fi
-
-if [[ "$addLabels" == "1" ]]
-then
-
-   tmpFile="/tmp/site-namespace-admin-${timestamp}.yaml"
-
-   mv "$outputNamespace" $tmpFile
-
-   "$thispath/addLabels/addSplitLabels.sh" -n "$tmpFile" -on "$outputNamespace"
-
-   rm -f $tmpFile
-
-fi
-
+#  List what went to neither file, so a new sas.com/admin value in a future release isn't silently dropped
+echo "Not in either file (count, sas.com/admin label):"
+yq "select(.kind != null and ($deployable | not)) | $admin // \"<unlabelled>\"" "$inputSite" | grep -v '^---$' | sort | uniq -c
